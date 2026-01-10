@@ -1,3 +1,2 @@
-# mobile
-
-A new Flutter project.
+flutter pub get
+flutter run
