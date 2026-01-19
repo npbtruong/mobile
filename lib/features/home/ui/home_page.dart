@@ -28,22 +28,8 @@ class HomePage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.check_circle_outline,
-                size: 80,
-                color: Colors.green,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Đăng nhập thành công!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
               if (user != null) ...[
                 Card(
                   child: Padding(
@@ -59,8 +45,6 @@ class HomePage extends StatelessWidget {
                         ),
                         const Divider(),
                         const SizedBox(height: 8),
-                        _InfoRow(label: 'ID', value: user['id']?.toString() ?? '-'),
-                        const SizedBox(height: 8),
                         _InfoRow(label: 'Tên', value: user['name'] ?? '-'),
                         const SizedBox(height: 8),
                         _InfoRow(label: 'Email', value: user['email'] ?? '-'),
@@ -72,16 +56,6 @@ class HomePage extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await authController.logout();
-                  if (context.mounted) {
-                    Navigator.of(context).pushReplacementNamed('/login');
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('Đăng xuất'),
-              ),
             ],
           ),
         ),
