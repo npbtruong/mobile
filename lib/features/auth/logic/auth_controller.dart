@@ -17,18 +17,29 @@ class AuthController extends ChangeNotifier {
   bool get isLoggedIn => _user != null;
 
   Future<void> checkAuthStatus() async {
+    _isLoading = true;
+    notifyListeners();
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final userJson = prefs.getString('user_email');
-    final userName = prefs.getString('user_name');
-    final userId = prefs.getInt('user_id');
 
-    if (token != null && userJson != null) {
-      _user = {
-        'id': userId,
-        'name': userName,
-        'email': userJson,
-      };
+    if (token == null) {
+      _user = null;
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    // Verify token và lấy thông tin user từ API
+    try {
+      final response = await _authApi.getProfile();
+      _user = response['user'];
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      // Token hết hạn (401) → logout
+      await logout();
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -40,15 +51,15 @@ class AuthController extends ChangeNotifier {
 
     try {
       final response = await _authApi.login(email, password);
-
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', response['access_token']);
-      await prefs.setString('refresh_token', response['refresh_token']);
-      await prefs.setString('user_email', response['user']['email']);
-      await prefs.setString('user_name', response['user']['name']);
-      await prefs.setInt('user_id', response['user']['id']);
 
-      _user = response['user'];
+      // Chỉ lưu access_token, KHÔNG lưu user info
+      await prefs.setString('access_token', response['access_token']);
+
+      // Lấy thông tin user từ API
+      final profileResponse = await _authApi.getProfile();
+      _user = profileResponse['user'];
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -62,12 +73,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    await prefs.remove('refresh_token');
-    await prefs.remove('user_email');
-    await prefs.remove('user_name');
-    await prefs.remove('user_id');
-
+    await prefs.clear();
     _user = null;
     _errorMessage = null;
     notifyListeners();

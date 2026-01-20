@@ -14,4 +14,9 @@ class AuthApi {
       },
     );
   }
+
+  // API để lấy thông tin user và verify token
+  Future<Map<String, dynamic>> getProfile() async {
+    return await _apiService.get('/auth/profile');
+  }
 }

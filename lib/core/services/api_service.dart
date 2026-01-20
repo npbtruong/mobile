@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   late final Dio _dio;
+  void Function()? onUnauthorized;
 
   ApiService() {
     _dio = Dio(
@@ -14,18 +15,34 @@ class ApiService {
       ),
     );
 
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('access_token');
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          return handler.next(options);
-        },
-      ),
-    );
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: _addAuthToken,
+      onError: _handleUnauthorized,
+    ));
+  }
+
+  Future<void> _addAuthToken(RequestOptions options, RequestInterceptorHandler handler) async {
+    // Không cần token cho login
+    if (options.path == '/auth/login') {
+      return handler.next(options);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    if (token != null) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
+    handler.next(options);
+  }
+
+  Future<void> _handleUnauthorized(DioException error, ErrorInterceptorHandler handler) async {
+    // Nếu 401 (token hết hạn) → xóa token và logout
+    if (error.response?.statusCode == 401) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      onUnauthorized?.call();
+    }
+    handler.next(error);
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> data) async {
@@ -33,10 +50,16 @@ class ApiService {
       final response = await _dio.post(path, data: data);
       return response.data;
     } on DioException catch (e) {
-      if (e.response != null && e.response!.data != null) {
-        throw e.response!.data['message'] ?? 'Đã xảy ra lỗi';
-      }
-      throw 'Không thể kết nối đến máy chủ';
+      throw e.response?.data['message'] ?? 'Không thể kết nối đến máy chủ';
+    }
+  }
+
+  Future<Map<String, dynamic>> get(String path) async {
+    try {
+      final response = await _dio.get(path);
+      return response.data;
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? 'Không thể kết nối đến máy chủ';
     }
   }
 }
