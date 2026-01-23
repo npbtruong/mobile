@@ -37,13 +37,6 @@ class HomePage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Thông tin người dùng',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Divider(),
                         const SizedBox(height: 8),
                         _InfoRow(label: 'Tên', value: user['name'] ?? '-'),
                         const SizedBox(height: 8),
