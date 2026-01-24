@@ -10,7 +10,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _InheritedAuthController(
+    return InheritedAuthController(
       controller: authController,
       child: MaterialApp(
         title: 'Mobile App',
@@ -36,18 +36,16 @@ class App extends StatelessWidget {
   }
 }
 
-class _InheritedAuthController extends InheritedNotifier<AuthController> {
-  const _InheritedAuthController({
+class InheritedAuthController extends InheritedNotifier<AuthController> {
+  const InheritedAuthController({
+    super.key,
     required AuthController controller,
     required super.child,
   }) : super(notifier: controller);
 
   static AuthController of(BuildContext context) {
     return context
-        .dependOnInheritedWidgetOfExactType<_InheritedAuthController>()!
+        .dependOnInheritedWidgetOfExactType<InheritedAuthController>()!
         .notifier!;
   }
 }
-
-// Export để các file khác có thể sử dụng
-typedef InheritedAuthController = _InheritedAuthController;

@@ -7,16 +7,16 @@ class AuthApi {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     return await _apiService.post(
-      '/auth/login',
+      'auth/login',
       {
-        'email': email,
-        'password': password,
+      'email': email,
+      'password': password,
       },
     );
   }
 
   // API để lấy thông tin user và verify token
   Future<Map<String, dynamic>> getProfile() async {
-    return await _apiService.get('/auth/profile');
+    return await _apiService.get('auth/profile');
   }
 }
