@@ -197,13 +197,15 @@ class _HomePageState extends State<HomePage> {
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
+                            onPressed: () async {
+                              await Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       const CreateProductPage(),
                                 ),
                               );
+                              if (!context.mounted) return;
+                              await _loadFirstPage();
                             },
                             icon: const Icon(Icons.photo_camera_rounded),
                             label: const Text('Upload'),
