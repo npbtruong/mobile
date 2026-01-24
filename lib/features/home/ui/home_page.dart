@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../app.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/services/api_service.dart';
+import '../../product/ui/create_product_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -192,6 +193,31 @@ class _HomePageState extends State<HomePage> {
                         _InfoRow(label: 'Tên', value: user['name'] ?? '-'),
                         const SizedBox(height: 8),
                         _InfoRow(label: 'Email', value: user['email'] ?? '-'),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const CreateProductPage(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.photo_camera_rounded),
+                            label: const Text('Upload'),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
