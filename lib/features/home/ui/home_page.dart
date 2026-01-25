@@ -326,12 +326,14 @@ class _ProductItem {
   final String tagId;
   final String imageUrl;
   final String description;
+  final String createdAt;
 
   const _ProductItem({
     required this.id,
     required this.tagId,
     required this.imageUrl,
     required this.description,
+    required this.createdAt,
   });
 
   factory _ProductItem.fromJson(Map<String, dynamic> json) {
@@ -340,6 +342,7 @@ class _ProductItem {
       tagId: (json['tag_id'] as String?) ?? '-',
       imageUrl: (json['image_url'] as String?) ?? '',
       description: (json['describe'] as String?) ?? '-',
+      createdAt: (json['created_at'] as String?) ?? '',
     );
   }
 
@@ -389,12 +392,11 @@ class _ProductTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.description,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
                     Text('Tag: ${item.tagId}'),
+                    const SizedBox(height: 8),
+                    Text('Description: ${item.description}'),
+                    const SizedBox(height: 8),
+                    Text('Created: ${item.createdAt}'),
                   ],
                 ),
               ),
