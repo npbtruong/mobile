@@ -19,7 +19,7 @@ class CreateProductPage extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.all(24.0),
             child: Text(
-              'CreateProductPage (đang phát triển)',
+              'CreateProductPage (in development)',
               textAlign: TextAlign.center,
             ),
           ),
