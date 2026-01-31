@@ -5,4 +5,11 @@ class ApiConstants {
 
   // Base URL for API endpoints (used by Dio baseUrl).
   static const String baseUrl = '$host/api/';
+
+  // Product endpoints
+  static const String products = 'products';
+
+  /// Endpoint to confirm NFC write for a product
+  /// Usage: '${ApiConstants.productNfcWritten(tagId)}'
+  static String productNfcWritten(String tagId) => 'products/$tagId/nfc-written';
 }

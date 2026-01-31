@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/services/nfc_service.dart';
 
 class CreateProductPage extends StatefulWidget {
   const CreateProductPage({super.key});
@@ -113,40 +114,17 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
       _showMessage(data['message']?.toString() ?? 'Tạo sản phẩm thành công');
 
+      // STEP 1: Check if nfc_url exists
       final nfcUrl = data['nfc_url']?.toString();
-      final nfcInstructions = data['nfc_instructions']?.toString();
-      if ((nfcUrl != null && nfcUrl.isNotEmpty) ||
-          (nfcInstructions != null && nfcInstructions.isNotEmpty)) {
-        await showDialog<void>(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('NFC'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (nfcUrl != null && nfcUrl.isNotEmpty) ...[
-                    const Text('nfc_url:'),
-                    SelectableText(nfcUrl),
-                    const SizedBox(height: 12),
-                  ],
-                  if (nfcInstructions != null && nfcInstructions.isNotEmpty) ...[
-                    const Text('nfc_instructions:'),
-                    Text(nfcInstructions),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Đóng'),
-                ),
-              ],
-            );
-          },
-        );
+      final tagId = data['product']?['tag_id']?.toString();
+
+      if (nfcUrl == null || nfcUrl.isEmpty) {
+        _showMessage('Lỗi: nfc_url không tồn tại trong phản hồi');
+        return;
       }
+
+      // STEP 2: Write NFC tag
+      await _writeNfcTag(nfcUrl, tagId);
     } on DioException catch (e) {
       if (!mounted) return;
       final data = e.response?.data;
@@ -160,6 +138,80 @@ class _CreateProductPageState extends State<CreateProductPage> {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
+    }
+  }
+
+  /// STEP 2: Write NFC tag with the nfc_url
+  Future<void> _writeNfcTag(String nfcUrl, String? tagId) async {
+    // Check platform support
+    if (!NfcService.isPlatformSupported()) {
+      _showMessage('NFC không được hỗ trợ trên nền tảng này');
+      return;
+    }
+
+    // Check NFC availability
+    final isAvailable = await NfcService.isNfcAvailable();
+    if (!isAvailable) {
+      _showMessage('NFC không khả dụng. Vui lòng bật NFC trong cài đặt.');
+      return;
+    }
+
+    // Show NFC write dialog
+    if (!mounted) return;
+    final writeSuccess = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _NfcWriteDialog(nfcUrl: nfcUrl),
+    );
+
+    if (!mounted) return;
+    if (writeSuccess == true && tagId != null && tagId.isNotEmpty) {
+      // STEP 3: Confirm NFC write to server
+      await _confirmNfcWritten(tagId);
+    }
+  }
+
+  /// STEP 3: Confirm NFC write success to server
+  Future<void> _confirmNfcWritten(String tagId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token');
+      if (token == null || token.isEmpty) {
+        _showMessage('Phiên đăng nhập đã hết hạn');
+        return;
+      }
+
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: ApiConstants.baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      final response = await dio.put<Map<String, dynamic>>(
+        ApiConstants.productNfcWritten(tagId),
+      );
+
+      if (!mounted) return;
+
+      final message = response.data?['message']?.toString() ?? 
+          'Xác nhận ghi NFC thành công';
+      _showMessage(message);
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final data = e.response?.data;
+      final message = (data is Map && data['message'] != null) 
+          ? data['message'].toString() 
+          : 'Không thể xác nhận ghi NFC với máy chủ';
+      _showMessage(message);
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage('Lỗi xác nhận NFC: $e');
     }
   }
 
@@ -265,6 +317,158 @@ class _CreateProductPageState extends State<CreateProductPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Dialog for NFC write operation with status feedback
+class _NfcWriteDialog extends StatefulWidget {
+  final String nfcUrl;
+
+  const _NfcWriteDialog({required this.nfcUrl});
+
+  @override
+  State<_NfcWriteDialog> createState() => _NfcWriteDialogState();
+}
+
+class _NfcWriteDialogState extends State<_NfcWriteDialog> {
+  String _status = 'Đưa thiết bị lại gần thẻ NFC...';
+  bool _isWriting = true;
+  bool _writeSuccess = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _startNfcWrite();
+  }
+
+  @override
+  void dispose() {
+    // Cancel NFC session if dialog is dismissed
+    if (_isWriting) {
+      NfcService.cancelSession();
+    }
+    super.dispose();
+  }
+
+  Future<void> _startNfcWrite() async {
+    try {
+      await NfcService.writeUrlToTag(
+        widget.nfcUrl,
+        onStatusUpdate: (message) {
+          if (mounted) {
+            setState(() => _status = message);
+          }
+        },
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isWriting = false;
+        _writeSuccess = true;
+        _status = 'Ghi NFC thành công!';
+      });
+
+      // Auto-close after success
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isWriting = false;
+        _writeSuccess = false;
+        _errorMessage = e.toString();
+        _status = 'Ghi NFC thất bại';
+      });
+    }
+  }
+
+  Future<void> _retry() async {
+    setState(() {
+      _isWriting = true;
+      _writeSuccess = false;
+      _errorMessage = null;
+      _status = 'Đưa thiết bị lại gần thẻ NFC...';
+    });
+    await _startNfcWrite();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(
+            _writeSuccess 
+                ? Icons.check_circle 
+                : (_errorMessage != null ? Icons.error : Icons.nfc),
+            color: _writeSuccess 
+                ? Colors.green 
+                : (_errorMessage != null ? Colors.red : Colors.blue),
+          ),
+          const SizedBox(width: 8),
+          const Text('Ghi NFC'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isWriting) ...[
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            _status,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _writeSuccess 
+                  ? Colors.green 
+                  : (_errorMessage != null ? Colors.red : null),
+              fontWeight: _writeSuccess || _errorMessage != null 
+                  ? FontWeight.w600 
+                  : null,
+            ),
+          ),
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Colors.red),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Text(
+            'URL: ${widget.nfcUrl}',
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+      actions: [
+        if (_errorMessage != null) ...[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: _retry,
+            child: const Text('Thử lại'),
+          ),
+        ] else if (_isWriting) ...[
+          TextButton(
+            onPressed: () {
+              NfcService.cancelSession();
+              Navigator.of(context).pop(false);
+            },
+            child: const Text('Hủy'),
+          ),
+        ],
+      ],
     );
   }
 }
