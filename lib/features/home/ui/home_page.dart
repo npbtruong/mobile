@@ -327,6 +327,7 @@ class _ProductItem {
   final String imageUrl;
   final String description;
   final String createdAt;
+  final int? nfcWritten;
 
   const _ProductItem({
     required this.id,
@@ -334,15 +335,21 @@ class _ProductItem {
     required this.imageUrl,
     required this.description,
     required this.createdAt,
+    required this.nfcWritten,
   });
 
   factory _ProductItem.fromJson(Map<String, dynamic> json) {
+    final nfcWritten = json['nfc_written'] == null
+        ? null
+        : int.tryParse(json['nfc_written'].toString());
+
     return _ProductItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
       tagId: (json['tag_id'] as String?) ?? '-',
       imageUrl: (json['image_url'] as String?) ?? '',
       description: (json['describe'] as String?) ?? '-',
       createdAt: (json['created_at'] as String?) ?? '',
+      nfcWritten: nfcWritten,
     );
   }
 
@@ -397,6 +404,10 @@ class _ProductTile extends StatelessWidget {
                     Text('Description: ${item.description}'),
                     const SizedBox(height: 8),
                     Text('Created: ${item.createdAt}'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'NFC Write Status: ${item.nfcWritten == 1 ? "Success" : "Pending"}',
+                    ),
                   ],
                 ),
               ),
